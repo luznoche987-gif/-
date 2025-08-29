@@ -1,0 +1,139 @@
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.image import Image
+from kivy.core.window import Window
+from kivy.animation import Animation
+from kivy.core.audio import SoundLoader
+import random
+
+choices = ["rock", "paper", "scissors"]
+color_map = {"rock": (0.6, 0.4, 0.2, 1),
+             "paper": (0.8, 0.8, 0.6, 1),
+             "scissors": (0.9, 0.6, 0.2, 1)}
+
+WIN_SCORE = 5  # نقطة الفوز النهائي
+
+# تعيين لون الخلفية الجميل (أزرق سماوي)
+Window.clearcolor = (135/255, 206/255, 235/255, 1)  # RGB إلى 0-1
+
+class RPSGame(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = "vertical"
+        self.spacing = 10
+        self.padding = 10
+
+        self.player_score = 0
+        self.computer_score = 0
+
+        # تحميل الأصوات
+        self.win_sound = SoundLoader.load('win.wav')
+        self.lose_sound = SoundLoader.load('lose.wav')
+        self.tie_sound = SoundLoader.load('tie.wav')
+
+        # عنوان اللعبة
+        self.title_label = Label(text="🎮 Rock, Paper, Scissors", font_size='10sp', size_hint=(1, 0.1))
+        self.add_widget(self.title_label)
+
+        # عرض النقاط
+        self.score_label = Label(text=f"🧑 Player: {self.player_score} | 💻 Computer: {self.computer_score}",
+                                 font_size='8sp', size_hint=(1, 0.08))
+        self.add_widget(self.score_label)
+
+        # عرض الصور
+        self.choice_layout = BoxLayout(size_hint=(1, 0.5), spacing=10)
+        self.player_img = Image(size_hint=(0.5, 1), allow_stretch=True)
+        self.computer_img = Image(size_hint=(0.5, 1), allow_stretch=True)
+        self.choice_layout.add_widget(self.player_img)
+        self.choice_layout.add_widget(self.computer_img)
+        self.add_widget(self.choice_layout)
+
+        # عرض النتيجة
+        self.result_label = Label(text="Make your choice!", font_size='8sp', size_hint=(1, 0.1))
+        self.add_widget(self.result_label)
+
+        # أزرار الاختيار بصور
+        self.btn_layout = BoxLayout(spacing=10, size_hint=(1, 0.2))
+        for choice in choices:
+            btn = Button(background_normal=f'{choice}.png',
+                         background_down=f'{choice}.png',
+                         size_hint=(1/3, 1))
+            btn.choice_name = choice
+            btn.bind(on_press=self.make_choice)
+            self.btn_layout.add_widget(btn)
+        self.add_widget(self.btn_layout)
+
+        # أزرار التحكم (Restart + Exit)
+        self.control_layout = BoxLayout(spacing=10, size_hint=(1, 0.1))
+        self.restart_btn = Button(text="Restart 🔄", font_size='6sp', background_color=(0, 0.5, 0, 1))
+        self.restart_btn.bind(on_press=self.restart_game)
+        self.exit_btn = Button(text="Exit ❌", font_size='6sp', background_color=(1, 0, 0, 1))
+        self.exit_btn.bind(on_press=self.exit_game)
+        self.control_layout.add_widget(self.restart_btn)
+        self.control_layout.add_widget(self.exit_btn)
+        self.add_widget(self.control_layout)
+
+    def animate_image(self, image):
+        anim = Animation(size_hint=(0.6, 1.2), duration=0.2) + Animation(size_hint=(0.5, 1), duration=0.2)
+        anim.start(image)
+
+    def make_choice(self, instance):
+        user_choice = instance.choice_name
+        computer_choice = random.choice(choices)
+
+        # عرض الصور
+        self.player_img.source = f"{user_choice}.png"
+        self.computer_img.source = f"{computer_choice}.png"
+
+        # تحديد النتيجة
+        if user_choice == computer_choice:
+            result = "🤝 It's a tie!"
+            if self.tie_sound: self.tie_sound.play()
+            # تضخيم كلا الصور قليلاً
+            self.animate_image(self.player_img)
+            self.animate_image(self.computer_img)
+        elif (user_choice == "rock" and computer_choice == "scissors") or \
+             (user_choice == "paper" and computer_choice == "rock") or \
+             (user_choice == "scissors" and computer_choice == "paper"):
+            result = f"🎉 You win! {user_choice.capitalize()} beats {computer_choice.capitalize()}"
+            self.player_score += 1
+            if self.win_sound: self.win_sound.play()
+            # تضخيم صورة اللاعب
+            self.animate_image(self.player_img)
+        else:
+            result = f"💻 You lose! {computer_choice.capitalize()} beats {user_choice.capitalize()}"
+            self.computer_score += 1
+            if self.lose_sound: self.lose_sound.play()
+            # تضخيم صورة الكمبيوتر
+            self.animate_image(self.computer_img)
+
+        # تحديث العرض
+        self.result_label.text = result
+        self.score_label.text = f"🧑 Player: {self.player_score} | 💻 Computer: {self.computer_score}"
+
+        # التحقق من الفوز النهائي
+        if self.player_score >= WIN_SCORE:
+            self.result_label.text = f"🎉 Congratulations! You reached {WIN_SCORE} points and won!"
+        elif self.computer_score >= WIN_SCORE:
+            self.result_label.text = f"💻 Computer reached {WIN_SCORE} points and won! Try again!"
+
+    def restart_game(self, instance):
+        self.player_score = 0
+        self.computer_score = 0
+        self.score_label.text = f"🧑 Player: {self.player_score} | 💻 Computer: {self.computer_score}"
+        self.result_label.text = "Make your choice!"
+        self.player_img.source = ""
+        self.computer_img.source = ""
+        Window.clearcolor = (135/255, 206/255, 235/255, 1)  # إعادة اللون الجميل
+
+    def exit_game(self, instance):
+        App.get_running_app().stop()
+
+class RPSApp(App):
+    def build(self):
+        return RPSGame()
+
+if __name__ == "__main__":
+    RPSApp().run()
